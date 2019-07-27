@@ -1,0 +1,23 @@
+version: "2"
+services:
+  app:
+    container_name: app
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - firefox-container
+    volumes:
+      - ./e2eTests:/e2eTests
+      - ./package.json:/package.json
+      - ./package-lock.json:/package-lock.json
+      - ./.gitignore:/.gitignore
+      - ./app.js:/app.js
+
+  firefox-container:
+    container_name: firefox-container
+    image: selenium/standalone-firefox:3.141.59-selenium
+    volumes:
+      - /dev/shm:/dev/shm
+    ports:
+      - "4444:4444"
