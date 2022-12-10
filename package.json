@@ -7,7 +7,7 @@
     "test:e2e": "codeceptjs run --steps --verbose --config=./e2eTests/docker.conf.js"
   },
   "dependencies": {
-    "express": "^4.17.1"
+    "express": "^4.17.3"
   },
   "devDependencies": {
     "codeceptjs": "^2.2.0",
