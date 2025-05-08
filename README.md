@@ -1,11 +1,10 @@
 # Selenium With Node for Acceptance tests
 
-- On Terminal 1
 ```sh
-    docker-compose up --build
-```
+# Build the docker image
+docker build -t selenium-chromium-test .
 
-- On Terminal 2
-```sh
-    docker exec -it app npm run test:e2e
+# Run the container
+docker run --rm selenium-chromium-test
+
 ```
