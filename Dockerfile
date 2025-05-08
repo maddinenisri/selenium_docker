@@ -1,23 +1,38 @@
-FROM python:3.11-slim
+# =========================
+# STAGE 1 — Build the Java Project
+# =========================
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
 
-# Install system dependencies
+WORKDIR /build
+
+# Copy Maven project files
+COPY pom.xml .
+COPY src ./src
+
+# Build project and copy dependencies
+RUN mvn clean compile dependency:copy-dependencies
+
+# =========================
+# STAGE 2 — Create a Slim Runner Image
+# =========================
+FROM selenium/standalone-chromium:latest
+
+USER root
+
 RUN apt-get update && apt-get install -y \
-    chromium chromium-driver \
-    fonts-liberation \
-    libasound2 libatk-bridge2.0-0 libnspr4 libnss3 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 xdg-utils \
-    wget unzip curl gnupg ca-certificates \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Set environment variables
-ENV CHROME_BIN=/usr/bin/chromium
+USER seluser
+
+WORKDIR /home/seluser/selenium_project
+
+# Copy built application and dependencies
+COPY --from=builder /build/target/classes ./classes
+COPY --from=builder /build/target/dependency ./dependency
+
+ENV CHROME_BIN=/usr/bin/chromium-browser
 ENV CHROMEDRIVER_BIN=/usr/bin/chromedriver
 
-# Install Python packages
-RUN pip install selenium
-
-# Copy test code
-COPY test_selenium_chromium.py .
-
-# Run the test
-CMD ["python", "test_selenium_chromium.py"]
+# Set classpath: classes + all dependency jars
+CMD ["java", "-cp", "classes:dependency/*", "com.mdstech.GoogleTest"]
