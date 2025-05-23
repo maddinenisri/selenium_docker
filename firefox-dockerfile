@@ -16,6 +16,8 @@ RUN apt-get update -qqy \
     xz-utils \
     # Core Firefox runtime dependencies (common for Debian-based systems)
     libgtk-3-0 \
+    # Add GTK3 development libraries (equivalent to gtk3-devel in CentOS)
+    libgtk-3-dev \
     libdbus-glib-1-2 \
     libxtst6 \
     libnss3 \
@@ -137,14 +139,7 @@ RUN mkdir -p /etc/ld.so.conf.d/ && \
     ldconfig && \
     # Verify libasound.so.2 is in the library path
     echo "Verifying libasound.so.2 in library path:" && \
-    ldconfig -p | grep libasound.so.2 && \
-    # Find the actual libasound.so.2 file
-    LIBASOUND_PATH=$(find /usr/lib/ -name "libasound.so.2" | head -n 1) && \
-    echo "Found libasound.so.2 at: ${LIBASOUND_PATH}" && \
-    # Create symbolic links in directories Firefox might look in
-    ln -sf ${LIBASOUND_PATH} /usr/lib/libasound.so.2 && \
-    ln -sf ${LIBASOUND_PATH} /lib/libasound.so.2 && \
-    ln -sf ${LIBASOUND_PATH} /opt/firefox/libasound.so.2
+    ldconfig -p | grep libasound.so.2
 
 # Set LD_LIBRARY_PATH to include all necessary directories
 ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu/pulseaudio:/usr/lib:${LD_LIBRARY_PATH}
