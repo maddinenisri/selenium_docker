@@ -6,8 +6,8 @@ ARG FIREFOX_VERSION=138.0.4
 ARG GECKODRIVER_VERSION=0.36.0
 
 # Chrome and ChromeDriver Versions
-ARG CHROME_VERSION=136.0.7103.92-1
-ARG CHROME_DRIVER_VERSION=136.0.7103.92
+ARG CHROME_VERSION=136.0.7103.113-1
+ARG CHROME_DRIVER_VERSION=136.0.7103.113
 
 # Install Chrome
 RUN apt-get update -qqy && apt-get install -qqy wget curl gnupg unzip ca-certificates \
