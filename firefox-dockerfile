@@ -46,7 +46,11 @@ RUN apt-get update -qqy \
     libsoup2.4-1 \
     fonts-liberation \
     fonts-dejavu \
+    # Audio libraries - explicitly installed
     libasound2 \
+    libasound2-data \
+    libasound2-plugins \
+    alsa-utils \
     libwebp6 \
     # Further common Firefox runtime dependencies
     libgconf-2-4 \
@@ -63,10 +67,6 @@ RUN apt-get update -qqy \
     libnss3-tools \
     # Add strace for debugging missing libraries
     strace \
-    # Ensure libasound2 and its dependencies are properly installed
-    libasound2 \
-    libasound2-data \
-    libasound2-plugins \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 # Run ldconfig and verify libasound.so.2 existence as root before switching user
@@ -82,7 +82,9 @@ RUN wget -q -O /tmp/firefox.tar.xz "https://ftp.mozilla.org/pub/firefox/releases
     # Create a symlink to the firefox executable for easy access
     && ln -s /opt/firefox/firefox /usr/bin/firefox \
     # Ensure Firefox has proper permissions
-    && chmod -R 755 /opt/firefox
+    && chmod -R 755 /opt/firefox \
+    && echo "Verifying Firefox dependencies after installation:" \
+    && ldd /opt/firefox/libxul.so | grep asound
 
 # Install Geckodriver
 # Download the specific Geckodriver version for Linux 64-bit from GitHub releases
@@ -95,7 +97,9 @@ RUN wget -q -O /tmp/geckodriver.tar.gz "https://github.com/mozilla/geckodriver/r
 
 # Create a directory for Firefox cache and give it proper permissions
 RUN mkdir -p /tmp/.mozilla \
-    && chmod 777 /tmp/.mozilla
+    && chmod 777 /tmp/.mozilla \
+    && echo "Testing Firefox with libasound.so.2 after cache setup:" \
+    && ldd /opt/firefox/libxul.so | grep asound
 
 # Environment Variables
 # Set the paths to the Firefox binary and Geckodriver binary
@@ -117,44 +121,47 @@ ENV MOZ_CRASHREPORTER_DISABLE=1
 # Set locale variables for better compatibility
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
-# Find and explicitly set LD_LIBRARY_PATH to include libasound.so.2 location
-RUN LIBASOUND_PATH=$(find /usr/lib/ -name "libasound.so.2" | head -n 1 | xargs dirname) && \
-    echo "Found libasound.so.2 in: ${LIBASOUND_PATH}" && \
-    echo "export LD_LIBRARY_PATH=${LIBASOUND_PATH}:/usr/lib/x86_64-linux-gnu/:/usr/lib/:${LD_LIBRARY_PATH}" >> /etc/profile && \
-    echo "export LD_LIBRARY_PATH=${LIBASOUND_PATH}:/usr/lib/x86_64-linux-gnu/:/usr/lib/:${LD_LIBRARY_PATH}" >> /home/appuser/.bashrc
+# Ensure libasound2 is properly installed and configured
+RUN apt-get update -qqy \
+    && apt-get install -qqy --no-install-recommends \
+    libasound2 \
+    libasound2-data \
+    libasound2-plugins \
+    alsa-utils \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
-# Explicitly set LD_LIBRARY_PATH for the appuser
-ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/:/usr/lib/x86_64-linux-gnu/pulseaudio/:/usr/lib/:${LD_LIBRARY_PATH}
-# Set a robust PATH for the appuser
-ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
-
-# Create non-root user
-RUN useradd -m appuser
-
-# Ensure library directories are accessible to appuser
+# Configure library paths for Firefox
 RUN mkdir -p /etc/ld.so.conf.d/ && \
     echo "/usr/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/firefox-libs.conf && \
     echo "/usr/lib" >> /etc/ld.so.conf.d/firefox-libs.conf && \
     ldconfig && \
     # Verify libasound.so.2 is in the library path
+    echo "Verifying libasound.so.2 in library path:" && \
     ldconfig -p | grep libasound.so.2 && \
-    # Copy necessary libraries to appuser's home directory if needed
-    mkdir -p /home/appuser/lib && \
-    cp $(find /usr/lib/ -name "libasound.so.2") /home/appuser/lib/ && \
-    chown -R appuser:appuser /home/appuser/lib
+    # Find the actual libasound.so.2 file
+    LIBASOUND_PATH=$(find /usr/lib/ -name "libasound.so.2" | head -n 1) && \
+    echo "Found libasound.so.2 at: ${LIBASOUND_PATH}" && \
+    # Create symbolic links in directories Firefox might look in
+    ln -sf ${LIBASOUND_PATH} /usr/lib/libasound.so.2 && \
+    ln -sf ${LIBASOUND_PATH} /lib/libasound.so.2 && \
+    ln -sf ${LIBASOUND_PATH} /opt/firefox/libasound.so.2
 
-# Switch to non-root user
-USER appuser
-# Add appuser's lib directory to LD_LIBRARY_PATH
-ENV LD_LIBRARY_PATH=/home/appuser/lib:${LD_LIBRARY_PATH}
-WORKDIR /home/appuser
+# Set LD_LIBRARY_PATH to include all necessary directories
+ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu/pulseaudio:/usr/lib:${LD_LIBRARY_PATH}
+# Set a robust PATH
+ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
+
+# Set working directory
+WORKDIR /root
 
 # Expose the default port for Geckodriver
 EXPOSE 4444
 
 # Create a script to run tests with Xvfb
 RUN echo '#!/bin/bash\nxvfb-run -a --server-args="-screen 0 1920x1080x24" "$@"' > /usr/local/bin/xvfb-run-safe \
-    && chmod +x /usr/local/bin/xvfb-run-safe
+    && chmod +x /usr/local/bin/xvfb-run-safe \
+    && echo "Testing Firefox with libasound.so.2:" \
+    && ldd /opt/firefox/libxul.so | grep asound || echo "libasound.so.2 not found in ldd output!"
 
 # Create a more robust Xvfb startup script
 RUN echo '#!/bin/bash\n\
@@ -184,3 +191,10 @@ COPY harness-run-tests.sh /usr/local/bin/harness-run-tests.sh
 RUN chmod +x /usr/local/bin/harness-run-tests.sh
 
 # No CMD directive - Harness will execute mvn clean test directly
+
+# Add a final verification step to ensure Firefox can find libasound.so.2
+RUN echo "Final verification of libasound.so.2:" \
+    && ldconfig \
+    && ldd /opt/firefox/libxul.so | grep asound \
+    && echo "Testing Firefox in headless mode:" \
+    && firefox --version
