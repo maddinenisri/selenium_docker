@@ -46,7 +46,8 @@ RUN apt-get update -qqy \
     libsoup2.4-1 \
     fonts-liberation \
     fonts-dejavu \
-    # libasound2 is moved to a separate RUN command below
+    # libasound2 is now back in the main install block
+    libasound2 \
     libwebp6 \
     # Further common Firefox runtime dependencies
     libgconf-2-4 \
@@ -61,14 +62,8 @@ RUN apt-get update -qqy \
     libxcb-xinput0 \
     # Added libnss3-tools for certificate management
     libnss3-tools \
-    && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
-
-# Install libasound2 separately and verify its presence
-# This ensures ldconfig is run after its installation, helping the system find the library.
-RUN apt-get update -qqy \
-    && apt-get install -qqy --no-install-recommends libasound2 \
-    && dpkg -L libasound2 | grep libasound.so.2 \
-    && ldconfig \
+    # Add strace for debugging missing libraries
+    strace \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 # Install Firefox
@@ -114,6 +109,8 @@ ENV MOZ_CRASHREPORTER_DISABLE=1
 # Set locale variables for better compatibility
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
+# Explicitly set LD_LIBRARY_PATH for the appuser
+ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/:/usr/lib/:${LD_LIBRARY_PATH}
 
 # Create non-root user
 RUN useradd -m appuser
