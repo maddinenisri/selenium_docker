@@ -67,8 +67,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -qqy --no-install-recommends 
     libasound2-data \
     libasound2-plugins \
     alsa-utils \
-    libwebp6 \
-    # Removed libgconf-2-4 as it might be deprecated or unavailable
+    # Removed libwebp6 as it's causing issues
     libcanberra-gtk3-module \
     libpulse0 \
     libvulkan1 \
