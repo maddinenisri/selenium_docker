@@ -16,7 +16,11 @@ RUN echo "deb http://deb.debian.org/debian/ bookworm main contrib non-free" > /e
     && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F8D2585B8783D481 \
     && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 54404762BBB6E853 \
     && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys BDE6D2B9216EC7A8 \
-    && apt-get update -qqy
+    && apt-get update -qqy \
+    # Attempt to fix any broken packages or held packages
+    && apt-get update --fix-missing -qqy \
+    && DEBIAN_FRONTEND=noninteractive apt-get -f install -qqy \
+    && DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -qqy
 
 # Install necessary packages for downloading, extracting, and Firefox runtime dependencies
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -qqy --no-install-recommends \
