@@ -18,6 +18,9 @@ public class GoogleTest {
         options.addArguments("-headless"); // Standard argument for Firefox headless
         options.addArguments("--no-sandbox"); // Good practice for Docker environments
         options.addArguments("--disable-dev-shm-usage"); // Recommended for Docker environments
+        options.addArguments("--window-size=1920,1080");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--disable-software-rasterizer");
 
         String osName = System.getProperty("os.name").toLowerCase();
         String geckoDriverPath;
