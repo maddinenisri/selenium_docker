@@ -1,0 +1,152 @@
+# Base image: Maven with Temurin 21 on UBI 8 (CentOS/RHEL-like)
+FROM maven:3.9.9-eclipse-temurin-21-ubi8
+
+# Firefox and Geckodriver Versions
+ARG FIREFOX_VERSION=138.0.4
+ARG GECKODRIVER_VERSION=0.36.0
+
+# Install necessary packages for downloading, extracting, and Firefox runtime dependencies
+# Using dnf for UBI 8 (CentOS/RHEL equivalent)
+RUN dnf update -y \
+    && dnf install -y \
+    wget \
+    curl \
+    bzip2 \
+    unzip \
+    xz \
+    xorg-x11-server-Xvfb \
+    gtk3-devel \
+    dbus-glib \
+    libXtst \
+    nss \
+    libXScrnSaver \
+    mesa-libgbm \
+    mesa-libGL \
+    fontconfig \
+    freetype \
+    libjpeg-turbo \
+    libpng \
+    libXcomposite \
+    libXdamage \
+    libXext \
+    libXfixes \
+    libXrandr \
+    libXrender \
+    harfbuzz \
+    libevent \
+    libffi \
+    procps-ng \
+    dbus-x11 \
+    atk \
+    atk-bridge \
+    libX11-xcb \
+    libdrm \
+    glib2 \
+    libsoup \
+    fonts-liberation \
+    dejavu-fonts-common \
+    alsa-lib \
+    libwebp \
+    GConf2 \
+    libcanberra-gtk3 \
+    pulseaudio-libs \
+    vulkan-loader \
+    dbus-libs \
+    mesa-libEGL \
+    libxcb-xinput \
+    nss-tools \
+    strace \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf/*
+
+# Run ldconfig and verify libasound.so.2 existence as root before switching user
+RUN ldconfig \
+    && echo "Verifying libasound.so.2 presence:" \
+    && find / -name libasound.so.2 2>/dev/null || echo "libasound.so.2 not found after install!"
+
+# Install Firefox
+# Download the specific Firefox version for Linux 64-bit from the FTP server
+RUN wget -q -O /tmp/firefox.tar.xz "https://ftp.mozilla.org/pub/firefox/releases/${FIREFOX_VERSION}/linux-x86_64/en-US/firefox-${FIREFOX_VERSION}.tar.xz" \
+    && tar -xJf /tmp/firefox.tar.xz -C /opt/ \
+    && rm /tmp/firefox.tar.xz \
+    # Create a symlink to the firefox executable for easy access
+    && ln -s /opt/firefox/firefox /usr/bin/firefox \
+    # Ensure Firefox has proper permissions
+    && chmod -R 755 /opt/firefox
+
+# Install Geckodriver
+# Download the specific Geckodriver version for Linux 64-bit from GitHub releases
+RUN wget -q -O /tmp/geckodriver.tar.gz "https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz" \
+    && tar -xzf /tmp/geckodriver.tar.gz -C /tmp/ \
+    && mv /tmp/geckodriver /usr/local/bin/geckodriver \
+    && rm /tmp/geckodriver.tar.gz \
+    # Make the geckodriver executable
+    && chmod +x /usr/local/bin/geckodriver
+
+# Create a directory for Firefox cache and give it proper permissions
+RUN mkdir -p /tmp/.mozilla \
+    && chmod 777 /tmp/.mozilla
+
+# Environment Variables
+# Set the paths to the Firefox binary and Geckodriver binary
+ENV FIREFOX_BIN=/usr/bin/firefox
+ENV GECKODRIVER_BIN=/usr/local/bin/geckodriver
+# Explicitly enable headless mode for Firefox
+ENV MOZ_HEADLESS=1
+# Set display for Xvfb (if needed)
+ENV DISPLAY=:99
+# Set Firefox preferences for Docker environment
+ENV MOZ_FORCE_DISABLE_E10S=1
+ENV MOZ_DISABLE_CONTENT_SANDBOX=1
+ENV MOZ_DISABLE_GMP_SANDBOX=1
+ENV MOZ_DISABLE_RDD_SANDBOX=1
+ENV MOZ_DISABLE_SOCKET_PROCESS_SANDBOX=1
+ENV MOZ_DISABLE_UTILITY_SANDBOX=1
+# Disable Firefox crash reporter in headless mode
+ENV MOZ_CRASHREPORTER_DISABLE=1
+# Set locale variables for better compatibility
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+# Explicitly set LD_LIBRARY_PATH for the appuser
+ENV LD_LIBRARY_PATH=/usr/lib64/:/usr/lib/:${LD_LIBRARY_PATH} # Adjusted for CentOS/RHEL
+# Set a robust PATH for the appuser
+ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
+
+# Create non-root user
+RUN useradd -m appuser
+USER appuser
+WORKDIR /home/appuser
+
+# Expose the default port for Geckodriver
+EXPOSE 4444
+
+# Create a script to run tests with Xvfb
+RUN echo '#!/bin/bash\nxvfb-run -a --server-args="-screen 0 1920x1080x24" "$@"' > /usr/local/bin/xvfb-run-safe \
+    && chmod +x /usr/local/bin/xvfb-run-safe
+
+# Create a more robust Xvfb startup script
+RUN echo '#!/bin/bash\n\
+    # Start Xvfb\n\
+    Xvfb :99 -screen 0 1920x1080x24 -ac &\n\
+    XVFB_PID=$!\n\
+    \n\
+    # Wait for Xvfb to be ready\n\
+    sleep 2\n\
+    \n\
+    # Run the command\n\
+    "$@"\n\
+    EXIT_CODE=$?\n\
+    \n\
+    # Kill Xvfb\n\
+    kill $XVFB_PID\n\
+    \n\
+    # Return the command exit code\n\
+    exit $EXIT_CODE' > /usr/local/bin/with-xvfb \
+    && chmod +x /usr/local/bin/with-xvfb
+
+# Copy the test runner scripts
+COPY run-tests.sh /usr/local/bin/run-tests.sh
+RUN chmod +x /usr/local/bin/run-tests.sh
+
+COPY harness-run-tests.sh /usr/local/bin/harness-run-tests.sh
+RUN chmod +x /usr/local/bin/harness-run-tests.sh
