@@ -25,11 +25,17 @@ public class Hooks {
     @Before
     public void setUp() {
         FirefoxOptions options = new FirefoxOptions();
-        options.addArguments("-headless");
+
+        // Set Firefox options for headless mode
+        options.addArguments("--headless");
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--window-size=1920,1080");
 
+        // Enable debugging
+        options.setCapability("moz:debuggerAddress", true);
+
+        // Set Firefox binary path based on OS
         String osName = System.getProperty("os.name").toLowerCase();
         String geckoDriverPath;
         String firefoxBinaryPath;
@@ -37,11 +43,7 @@ public class Hooks {
         if (osName.contains("mac")) {
             // Paths for macOS
             geckoDriverPath =
-                    System.getenv().getOrDefault("GECKODRIVER_BIN", "/usr/local/bin/geckodriver"); // Or
-                                                                                                   // your
-                                                                                                   // specific
-                                                                                                   // local
-                                                                                                   // path
+                    System.getenv().getOrDefault("GECKODRIVER_BIN", "/usr/local/bin/geckodriver");
             firefoxBinaryPath = System.getenv().getOrDefault("FIREFOX_BIN",
                     "/Applications/Firefox.app/Contents/MacOS/firefox");
         } else {
@@ -49,19 +51,35 @@ public class Hooks {
             geckoDriverPath =
                     System.getenv().getOrDefault("GECKODRIVER_BIN", "/usr/local/bin/geckodriver");
             firefoxBinaryPath = System.getenv().getOrDefault("FIREFOX_BIN", "/usr/bin/firefox");
+
+            // Set additional Linux-specific options
+            options.addArguments("--disable-gpu");
+            options.addArguments("--disable-software-rasterizer");
         }
 
+        // Set the Firefox binary path
         options.setBinary(firefoxBinaryPath);
 
-        // Set logging level for Firefox (optional, but useful for debugging)
-        options.setCapability("moz:firefoxOptions", Map.of("log", Map.of("level", "error")));
+        // Accept insecure certificates
+        options.setAcceptInsecureCerts(true);
 
-        service = new GeckoDriverService.Builder().usingDriverExecutable(new File(geckoDriverPath))
-                .build();
+        // Set logging for debugging
+        options.setLogLevel(org.openqa.selenium.firefox.FirefoxDriverLogLevel.TRACE);
 
         try {
+            // Create and start the GeckoDriver service
+            System.out.println("Starting GeckoDriver service with executable: " + geckoDriverPath);
+            service = new GeckoDriverService.Builder()
+                    .usingDriverExecutable(new File(geckoDriverPath))
+                    .withLogFile(new File("geckodriver.log")).build();
+
             service.start();
+            System.out.println("GeckoDriver service started successfully");
+
+            // Create the Firefox driver
+            System.out.println("Creating Firefox driver with binary: " + firefoxBinaryPath);
             driver = new FirefoxDriver(service, options);
+            System.out.println("Firefox driver created successfully");
         } catch (IOException e) {
             System.err.println("Error starting Geckodriver service: " + e.getMessage());
             e.printStackTrace();
