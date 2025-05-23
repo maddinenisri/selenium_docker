@@ -5,9 +5,14 @@ FROM maven:3.9.9-eclipse-temurin-21
 ARG FIREFOX_VERSION=138.0.4
 ARG GECKODRIVER_VERSION=0.36.0
 
+# Ensure standard Debian repositories are configured and update apt cache
+RUN echo "deb http://deb.debian.org/debian/ bookworm main contrib non-free" > /etc/apt/sources.list \
+    && echo "deb http://deb.debian.org/debian/ bookworm-updates main contrib non-free" >> /etc/apt/sources.list \
+    && echo "deb http://deb.debian.org/debian-security bookworm-security main contrib non-free" >> /etc/apt/sources.list \
+    && apt-get update -qqy
+
 # Install necessary packages for downloading, extracting, and Firefox runtime dependencies
-RUN apt-get update -qqy \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -qqy --no-install-recommends \
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -qqy --no-install-recommends \
     ca-certificates \
     gnupg \
     wget \
@@ -64,12 +69,15 @@ RUN apt-get update -qqy \
     libdbus-1-3 \
     # New packages requested for display and input
     libegl1 \
-    libgl1-mesa-glx \
+    # Removed libgl1-mesa-glx as libgl1 should pull in necessary parts
     libxcb-xinput0 \
     # Added libnss3-tools for certificate management
     libnss3-tools \
     # Add strace for debugging missing libraries
     strace \
+    # Add locales and tzdata for a more complete environment
+    locales \
+    tzdata \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 # Run ldconfig and verify libasound.so.2 existence as root before switching user
