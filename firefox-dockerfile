@@ -1,11 +1,20 @@
 # Start from Maven with Temurin 21 (Debian Bookworm base)
 FROM maven:3.9.9-eclipse-temurin-21
 
-# Ensure the Debian keyring is present (fixes GPG errors if sources were ever overwritten)
-RUN apt-get update -qqy && \
-    apt-get install -qqy --no-install-recommends debian-archive-keyring
+# Set Firefox and Geckodriver versions
+ENV FIREFOX_VERSION=115.0
+ENV GECKODRIVER_VERSION=0.33.0
 
-# (Optional) Restore sources.list if you suspect it was overwritten or corrupted
+# Fix GPG key issues for Debian repositories
+RUN apt-get update -qqy || true && \
+    apt-get install -qqy --no-install-recommends gnupg2 debian-archive-keyring && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9 && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6ED0E7B82643E131 && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F8D2585B8783D481 && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 54404762BBB6E853 && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys BDE6D2B9216EC7A8
+
+# Restore sources.list
 RUN echo "deb http://deb.debian.org/debian bookworm main contrib non-free" > /etc/apt/sources.list && \
     echo "deb http://deb.debian.org/debian bookworm-updates main contrib non-free" >> /etc/apt/sources.list && \
     echo "deb http://deb.debian.org/debian-security bookworm-security main contrib non-free" >> /etc/apt/sources.list
@@ -77,25 +86,6 @@ RUN wget -q -O /tmp/geckodriver.tar.gz "https://github.com/mozilla/geckodriver/r
 # Create a directory for Firefox cache and give it proper permissions
 RUN mkdir -p /tmp/.mozilla && chmod 777 /tmp/.mozilla
 
-# Environment variables
-ENV FIREFOX_BIN=/usr/bin/firefox
-ENV GECKODRIVER_BIN=/usr/local/bin/geckodriver
-ENV MOZ_HEADLESS=1
-ENV DISPLAY=:99
-ENV MOZ_CRASHREPORTER_DISABLE=1
-ENV LANG=C.UTF-8
-ENV LC_ALL=C.UTF-8
-ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/lib:${LD_LIBRARY_PATH}
-ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
-
-# Create non-root user for running tests
-RUN useradd -m appuser
-USER appuser
-WORKDIR /home/appuser
-
-# Expose Geckodriver port (if using remote WebDriver)
-EXPOSE 4444
-
 # Add a script to run tests with Xvfb
 RUN echo '#!/bin/bash\nxvfb-run -a --server-args="-screen 0 1920x1080x24" "$@"' > /usr/local/bin/xvfb-run-safe \
     && chmod +x /usr/local/bin/xvfb-run-safe \
@@ -128,5 +118,24 @@ RUN chmod +x /usr/local/bin/run-tests.sh
 
 COPY harness-run-tests.sh /usr/local/bin/harness-run-tests.sh
 RUN chmod +x /usr/local/bin/harness-run-tests.sh
+
+# Environment variables
+ENV FIREFOX_BIN=/usr/bin/firefox
+ENV GECKODRIVER_BIN=/usr/local/bin/geckodriver
+ENV MOZ_HEADLESS=1
+ENV DISPLAY=:99
+ENV MOZ_CRASHREPORTER_DISABLE=1
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/lib:${LD_LIBRARY_PATH}
+ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
+
+# Create non-root user for running tests
+RUN useradd -m appuser
+USER appuser
+WORKDIR /home/appuser
+
+# Expose Geckodriver port (if using remote WebDriver)
+EXPOSE 4444
 
 # No CMD directive - Harness will execute mvn clean test directly
