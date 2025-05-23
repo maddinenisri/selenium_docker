@@ -1,4 +1,4 @@
-# Base image: Maven with Temurin 21
+# Base image: Maven with Temurin 21 (Debian-based)
 FROM maven:3.9.9-eclipse-temurin-21
 
 # Firefox and Geckodriver Versions
@@ -16,7 +16,6 @@ RUN apt-get update -qqy \
     xz-utils \
     # Core Firefox runtime dependencies (common for Debian-based systems)
     libgtk-3-0 \
-    # Add GTK3 development libraries
     libgtk-3-dev \
     libdbus-glib-1-2 \
     libxtst6 \
@@ -52,7 +51,6 @@ RUN apt-get update -qqy \
     libasound2 \
     libasound2-data \
     libasound2-plugins \
-    alsa-lib \
     alsa-utils \
     libwebp6 \
     # Further common Firefox runtime dependencies
