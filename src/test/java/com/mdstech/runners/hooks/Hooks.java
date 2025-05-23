@@ -24,7 +24,15 @@ public class Hooks {
 
     @Before
     public void setUp() {
+        System.out.println("Setting up WebDriver...");
+        System.out.println("OS: " + System.getProperty("os.name") + ", Arch: "
+                + System.getProperty("os.arch"));
+
         FirefoxOptions options = new FirefoxOptions();
+
+        // Print environment variables for debugging
+        System.out.println("DISPLAY=" + System.getenv("DISPLAY"));
+        System.out.println("MOZ_HEADLESS=" + System.getenv("MOZ_HEADLESS"));
 
         // Set Firefox options for headless mode
         options.addArguments("-headless"); // Use single dash for compatibility
@@ -34,8 +42,11 @@ public class Hooks {
         options.addArguments("--disable-gpu");
         options.addArguments("--disable-software-rasterizer");
 
-        // Enable debugging
-        options.setCapability("moz:debuggerAddress", true);
+        // Additional options that might help in Docker
+        options.addArguments("--remote-debugging-port=9222");
+
+        // Accept insecure certificates
+        options.setAcceptInsecureCerts(true);
 
         // Set Firefox binary path based on OS
         String osName = System.getProperty("os.name").toLowerCase();
@@ -73,15 +84,37 @@ public class Hooks {
             System.out.println("Starting GeckoDriver service with executable: " + geckoDriverPath);
             service = new GeckoDriverService.Builder()
                     .usingDriverExecutable(new File(geckoDriverPath))
-                    .withLogFile(new File("geckodriver.log")).build();
+                    .withLogFile(new File("geckodriver.log")).withEnvironment(System.getenv()) // Pass
+                                                                                               // all
+                                                                                               // environment
+                                                                                               // variables
+                    .build();
 
             service.start();
             System.out.println("GeckoDriver service started successfully");
 
             // Create the Firefox driver
             System.out.println("Creating Firefox driver with binary: " + firefoxBinaryPath);
-            driver = new FirefoxDriver(service, options);
-            System.out.println("Firefox driver created successfully");
+            try {
+                driver = new FirefoxDriver(service, options);
+                System.out.println("Firefox driver created successfully");
+            } catch (Exception e) {
+                System.err.println(
+                        "Failed to create Firefox driver with service. Trying direct approach: "
+                                + e.getMessage());
+                e.printStackTrace();
+
+                // Try alternative approach without explicit service
+                try {
+                    System.setProperty("webdriver.gecko.driver", geckoDriverPath);
+                    driver = new FirefoxDriver(options);
+                    System.out.println("Firefox driver created successfully using direct approach");
+                } catch (Exception e2) {
+                    System.err.println("Both approaches failed. Final error: " + e2.getMessage());
+                    e2.printStackTrace();
+                    throw e2;
+                }
+            }
         } catch (IOException e) {
             System.err.println("Error starting Geckodriver service: " + e.getMessage());
             e.printStackTrace();
