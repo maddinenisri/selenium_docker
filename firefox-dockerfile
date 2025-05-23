@@ -46,7 +46,6 @@ RUN apt-get update -qqy \
     libsoup2.4-1 \
     fonts-liberation \
     fonts-dejavu \
-    # libasound2 is now back in the main install block
     libasound2 \
     libwebp6 \
     # Further common Firefox runtime dependencies
@@ -65,6 +64,11 @@ RUN apt-get update -qqy \
     # Add strace for debugging missing libraries
     strace \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+
+# Run ldconfig and verify libasound.so.2 existence as root before switching user
+RUN ldconfig \
+    && echo "Verifying libasound.so.2 presence:" \
+    && find / -name libasound.so.2 2>/dev/null || echo "libasound.so.2 not found after install!"
 
 # Install Firefox
 # Download the specific Firefox version for Linux 64-bit from the FTP server
@@ -111,6 +115,8 @@ ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 # Explicitly set LD_LIBRARY_PATH for the appuser
 ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/:/usr/lib/:${LD_LIBRARY_PATH}
+# Set a robust PATH for the appuser
+ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
 
 # Create non-root user
 RUN useradd -m appuser
