@@ -33,7 +33,7 @@ RUN apt-get update -qqy \
     libgl1 \
     libfontconfig1 \
     libfreetype6 \
-    libjpeg62-turbo \
+    libjpeg-dev \
     libpng16-16 \
     libxcomposite1 \
     libxdamage1 \
@@ -64,6 +64,18 @@ RUN apt-get update -qqy \
     libpulse0 \
     libvulkan1 \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+
+# Manually install missing packages from Ubuntu repositories
+RUN wget -q http://mirrors.kernel.org/ubuntu/pool/universe/g/gconf/libgconf-2-4_3.2.6-8ubuntu1_amd64.deb && \
+    wget -q http://mirrors.kernel.org/ubuntu/pool/universe/g/gconf/gconf2-common_3.2.6-8ubuntu1_all.deb && \
+    apt-get update && \
+    apt-get install -y ./gconf2-common_3.2.6-8ubuntu1_all.deb ./libgconf-2-4_3.2.6-8ubuntu1_amd64.deb && \
+    rm -f ./*.deb
+
+# Manually install libasound2 from Ubuntu if needed
+RUN wget -q http://mirrors.kernel.org/ubuntu/pool/main/a/alsa-lib/libasound2_1.2.4-1.1ubuntu2_amd64.deb && \
+    apt-get install -y ./libasound2_1.2.4-1.1ubuntu2_amd64.deb || true && \
+    rm -f ./*.deb
 
 # Install Firefox
 # Download the specific Firefox version for Linux 64-bit from the FTP server
