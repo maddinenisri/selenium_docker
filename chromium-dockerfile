@@ -1,0 +1,29 @@
+FROM maven:3.9.9-eclipse-temurin-21
+
+# Chrome and ChromeDriver Versions
+ARG CHROME_VERSION=136.0.7103.92-1
+ARG CHROME_DRIVER_VERSION=136.0.7103.92
+
+# Install Chrome
+RUN apt-get update -qqy && apt-get install -qqy wget curl gnupg unzip ca-certificates \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/keyrings/google-chrome.gpg \
+    && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update -qqy \
+    && apt-get install -qqy google-chrome-stable=${CHROME_VERSION} \
+    && rm /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
+    && sed -i 's|"$HERE/chrome"|"$HERE/chrome" --no-sandbox|g' /opt/google/chrome/google-chrome
+
+
+# Install ChromeDriver
+RUN wget -q -O /tmp/chromedriver.zip https://storage.googleapis.com/chrome-for-testing-public/${CHROME_DRIVER_VERSION}/linux64/chromedriver-linux64.zip \
+    && unzip /tmp/chromedriver.zip -d /opt \
+    && rm /tmp/chromedriver.zip \
+    && ln -s /opt/chromedriver-linux64/chromedriver /usr/bin/chromedriver
+
+# Environment Variables
+ENV CHROME_BIN=/usr/bin/google-chrome
+ENV CHROMEDRIVER_BIN=/usr/bin/chromedriver
+
+WORKDIR /usr/src/app
