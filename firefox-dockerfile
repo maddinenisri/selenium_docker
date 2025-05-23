@@ -117,9 +117,11 @@ RUN echo '#!/bin/bash\n\
     exit $EXIT_CODE' > /usr/local/bin/with-xvfb \
     && chmod +x /usr/local/bin/with-xvfb
 
-# Copy the run-tests script
+# Copy the test runner scripts
 COPY run-tests.sh /usr/local/bin/run-tests.sh
 RUN chmod +x /usr/local/bin/run-tests.sh
 
-# Default command to run tests with Xvfb
-CMD ["with-xvfb", "mvn", "test"]
+COPY harness-run-tests.sh /usr/local/bin/harness-run-tests.sh
+RUN chmod +x /usr/local/bin/harness-run-tests.sh
+
+# No CMD directive - Harness will execute mvn clean test directly

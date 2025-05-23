@@ -26,13 +26,24 @@ docker build -t selenium-firefox-tests -f firefox-dockerfile .
 
 There are several ways to run the tests in the Docker container:
 
-### Option 1: Using the Default CMD
+### Option 1: Using Harness CI/CD
 
-The Dockerfile includes a default CMD that runs the tests with Xvfb:
+In the Harness environment, the build system will execute `mvn clean test` directly. To ensure proper Xvfb setup, use the provided harness-run-tests.sh script:
 
 ```bash
-docker run --rm selenium-firefox-tests
+# Copy the script to the container
+COPY harness-run-tests.sh /usr/local/bin/harness-run-tests.sh
+RUN chmod +x /usr/local/bin/harness-run-tests.sh
+
+# In your Harness CI/CD pipeline, use:
+harness-run-tests.sh clean test
 ```
+
+This script:
+- Sets up Xvfb with proper screen dimensions
+- Configures all necessary Firefox environment variables
+- Provides detailed logging and error reporting
+- Displays test results and error logs on failure
 
 ### Option 2: Using the run-tests.sh script
 
