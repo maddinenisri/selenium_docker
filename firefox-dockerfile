@@ -5,6 +5,10 @@ FROM maven:3.9.9-eclipse-temurin-21
 ARG FIREFOX_VERSION=138.0.4
 ARG GECKODRIVER_VERSION=0.36.0
 
+# Chrome and ChromeDriver Versions
+ARG CHROME_VERSION=136.0.7103.92-1
+ARG CHROME_DRIVER_VERSION=136.0.7103.92
+
 # Fix GPG key issues for Debian repositories
 RUN apt-get update -qqy || true && \
     apt-get install -qqy --no-install-recommends gnupg2 ca-certificates && \
@@ -68,6 +72,24 @@ RUN apt-get update -qqy \
     libpulse0 \
     libvulkan1 \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+
+# Install Chrome
+RUN apt-get update -qqy && apt-get install -qqy wget curl gnupg unzip ca-certificates \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/keyrings/google-chrome.gpg \
+    && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update -qqy \
+    && apt-get install -qqy google-chrome-stable=${CHROME_VERSION} \
+    && rm /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/* \
+    && sed -i 's|"$HERE/chrome"|"$HERE/chrome" --no-sandbox|g' /opt/google/chrome/google-chrome
+
+
+# Install ChromeDriver
+RUN wget -q -O /tmp/chromedriver.zip https://storage.googleapis.com/chrome-for-testing-public/${CHROME_DRIVER_VERSION}/linux64/chromedriver-linux64.zip \
+    && unzip /tmp/chromedriver.zip -d /opt \
+    && rm /tmp/chromedriver.zip \
+    && ln -s /opt/chromedriver-linux64/chromedriver /usr/bin/chromedriver
 
 # Manually install libasound2t64 (as suggested by user)
 RUN wget -q http://mirrors.edge.kernel.org/ubuntu/pool/main/a/alsa-lib/libasound2_1.2.4-1.1ubuntu2_amd64.deb -O libasound2t64.deb || true && \
@@ -147,6 +169,10 @@ COPY harness-run-tests.sh /usr/local/bin/harness-run-tests.sh
 RUN chmod +x /usr/local/bin/harness-run-tests.sh
 
 # Environment Variables
+# Set the paths to the Chrome binary and Chromedriver binary
+ENV CHROME_BIN=/usr/bin/google-chrome
+ENV CHROMEDRIVER_BIN=/usr/bin/chromedriver
+
 # Set the paths to the Firefox binary and Geckodriver binary
 ENV FIREFOX_BIN=/usr/bin/firefox
 ENV GECKODRIVER_BIN=/usr/local/bin/geckodriver
