@@ -108,7 +108,8 @@ ENV MOZ_CRASHREPORTER_DISABLE=1
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 # Explicitly set LD_LIBRARY_PATH for the appuser
-ENV LD_LIBRARY_PATH=/usr/lib64/:/usr/lib/:${LD_LIBRARY_PATH} # Adjusted for CentOS/RHEL
+ENV LD_LIBRARY_PATH=/usr/lib64/:/usr/lib/:${LD_LIBRARY_PATH} 
+# Adjusted for CentOS/RHEL
 # Set a robust PATH for the appuser
 ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
 
