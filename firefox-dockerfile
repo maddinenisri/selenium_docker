@@ -14,7 +14,7 @@ RUN apt-get update -qqy || true && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 54404762BBB6E853 && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys BDE6D2B9216EC7A8
 
-# Install necessary packages for downloading, extracting, and Firefox runtime dependencies
+# Install essential packages for Firefox in headless mode
 RUN apt-get update -qqy \
     && apt-get install -qqy --no-install-recommends \
     wget \
@@ -23,18 +23,19 @@ RUN apt-get update -qqy \
     unzip \
     xvfb \
     xz-utils \
-    # Core Firefox runtime dependencies (common for Debian-based systems)
+    # Audio packages as suggested
+    libasound2t64 \
+    # Minimal set of Firefox dependencies
     libgtk-3-0 \
     libdbus-glib-1-2 \
-    libxtst6 \
     libnss3 \
     libxss1 \
     libgbm1 \
     libgl1 \
     libfontconfig1 \
     libfreetype6 \
-    libjpeg-dev \
     libpng16-16 \
+    libx11-xcb1 \
     libxcomposite1 \
     libxdamage1 \
     libxext6 \
@@ -48,33 +49,31 @@ RUN apt-get update -qqy \
     dbus-x11 \
     libatk1.0-0 \
     libatk-bridge2.0-0 \
-    # Additional dependencies for headless mode
-    libx11-xcb1 \
     libdrm2 \
     libglib2.0-0 \
     libsoup2.4-1 \
     fonts-liberation \
     fonts-dejavu \
-    # Ensure core dbus library is present
     libdbus-1-3 \
-    # New packages requested for display and input
     libegl1 \
     libxcb-xinput0 \
-    # Add pulseaudio for audio support
     libpulse0 \
     libvulkan1 \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
-# Manually install missing packages from Ubuntu repositories
-RUN wget -q http://mirrors.kernel.org/ubuntu/pool/universe/g/gconf/libgconf-2-4_3.2.6-8ubuntu1_amd64.deb && \
-    wget -q http://mirrors.kernel.org/ubuntu/pool/universe/g/gconf/gconf2-common_3.2.6-8ubuntu1_all.deb && \
+# Manually install libasound2t64 if it exists
+RUN wget -q http://mirrors.edge.kernel.org/ubuntu/pool/main/a/alsa-lib/libasound2_1.2.4-1.1ubuntu2_amd64.deb -O libasound2.deb || true && \
+    if [ -f libasound2.deb ]; then \
     apt-get update && \
-    apt-get install -y ./gconf2-common_3.2.6-8ubuntu1_all.deb ./libgconf-2-4_3.2.6-8ubuntu1_amd64.deb && \
+    apt-get install -y ./libasound2.deb || true; \
+    fi && \
     rm -f ./*.deb
 
-# Manually install libasound2 from Ubuntu if needed
-RUN wget -q http://mirrors.kernel.org/ubuntu/pool/main/a/alsa-lib/libasound2_1.2.4-1.1ubuntu2_amd64.deb && \
-    apt-get install -y ./libasound2_1.2.4-1.1ubuntu2_amd64.deb || true && \
+# Manually install libgconf-2-4 and its dependencies with the latest versions
+RUN wget -q http://mirrors.edge.kernel.org/ubuntu/pool/universe/g/gconf/gconf2-common_3.2.6-7ubuntu2_all.deb && \
+    wget -q http://mirrors.edge.kernel.org/ubuntu/pool/universe/g/gconf/libgconf-2-4_3.2.6-7ubuntu2_amd64.deb && \
+    apt-get update && \
+    apt-get install -y ./gconf2-common_3.2.6-7ubuntu2_all.deb ./libgconf-2-4_3.2.6-7ubuntu2_amd64.deb || true && \
     rm -f ./*.deb
 
 # Install Firefox
