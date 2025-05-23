@@ -5,6 +5,12 @@ FROM maven:3.9.9-eclipse-temurin-21
 ARG FIREFOX_VERSION=138.0.4
 ARG GECKODRIVER_VERSION=0.36.0
 
+# Reset sources and update
+RUN echo "deb http://deb.debian.org/debian bookworm main contrib non-free" > /etc/apt/sources.list && \
+    echo "deb http://deb.debian.org/debian bookworm-updates main contrib non-free" >> /etc/apt/sources.list && \
+    echo "deb http://deb.debian.org/debian-security bookworm-security main contrib non-free" >> /etc/apt/sources.list && \
+    apt-get update -qqy
+
 # Install dependencies
 RUN apt-get update -qqy && \
     apt-get install -qqy --no-install-recommends \
