@@ -53,8 +53,7 @@ RUN apt-get update -qqy \
     libasound2-plugins \
     alsa-utils \
     libwebp6 \
-    # Further common Firefox runtime dependencies
-    libgconf-2-4 \
+    # Removed libgconf-2-4 as it might be deprecated or unavailable
     libcanberra-gtk3-module \
     libpulse0 \
     libvulkan1 \
