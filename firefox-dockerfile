@@ -63,7 +63,8 @@ RUN apt-get update -qqy \
 
 # Install libasound2 separately and verify its presence
 RUN apt-get update -qqy \
-    && apt-get install -qqy --no-install-recommends libasound2 \
+    && apt-get install -qqy --no-install-recommends libasound2 \ 
+    libasound2:i386 \
     && dpkg -L libasound2 | grep libasound.so.2 \
     && ldconfig \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
