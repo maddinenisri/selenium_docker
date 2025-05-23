@@ -7,44 +7,74 @@ import io.cucumber.java.Scenario;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
-import io.github.bonigarcia.wdm.WebDriverManager;
+import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.firefox.FirefoxOptions;
+import org.openqa.selenium.firefox.GeckoDriverService;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Map;
 
 public class Hooks {
 
     public static WebDriver driver;
+    private static GeckoDriverService service;
 
     @Before
     public void setUp() {
-        WebDriverManager.chromedriver().setup();
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("--disable-blink-features=AutomationControlled");
-        options.addArguments("--start-maximized");
-        options.addArguments("--remote-allow-origins=*");
-        // options.addArguments("--headless=new");
+        FirefoxOptions options = new FirefoxOptions();
+        options.addArguments("-headless");
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
-        options.addArguments("--headless=new"); // ✅ headless mode
         options.addArguments("--window-size=1920,1080");
-        driver = new ChromeDriver(options);
+
+        String osName = System.getProperty("os.name").toLowerCase();
+        String geckoDriverPath;
+        String firefoxBinaryPath;
+
+        if (osName.contains("mac")) {
+            // Paths for macOS
+            geckoDriverPath =
+                    System.getenv().getOrDefault("GECKODRIVER_BIN", "/usr/local/bin/geckodriver"); // Or
+                                                                                                   // your
+                                                                                                   // specific
+                                                                                                   // local
+                                                                                                   // path
+            firefoxBinaryPath = System.getenv().getOrDefault("FIREFOX_BIN",
+                    "/Applications/Firefox.app/Contents/MacOS/firefox");
+        } else {
+            // Paths for Linux (Docker)
+            geckoDriverPath =
+                    System.getenv().getOrDefault("GECKODRIVER_BIN", "/usr/local/bin/geckodriver");
+            firefoxBinaryPath = System.getenv().getOrDefault("FIREFOX_BIN", "/usr/bin/firefox");
+        }
+
+        options.setBinary(firefoxBinaryPath);
+
+        // Set logging level for Firefox (optional, but useful for debugging)
+        options.setCapability("moz:firefoxOptions", Map.of("log", Map.of("level", "error")));
+
+        service = new GeckoDriverService.Builder().usingDriverExecutable(new File(geckoDriverPath))
+                .build();
+
+        try {
+            service.start();
+            driver = new FirefoxDriver(service, options);
+        } catch (IOException e) {
+            System.err.println("Error starting Geckodriver service: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to start Geckodriver service", e);
+        }
     }
 
     @AfterStep
     public void captureScreenshotAfterStep(Scenario scenario) {
         try {
-            // Take screenshot
             if (driver instanceof TakesScreenshot) {
                 byte[] screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-
-                // Attach to Cucumber report
                 scenario.attach(screenshot, "image/png", "Step Screenshot");
-
-                // Also save to filesystem
                 saveScreenshotToFile(screenshot, scenario.getName());
             }
         } catch (Exception e) {
@@ -68,6 +98,9 @@ public class Hooks {
     public void tearDown() {
         if (driver != null) {
             driver.quit();
+        }
+        if (service != null && service.isRunning()) {
+            service.stop();
         }
     }
 }
