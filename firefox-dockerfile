@@ -23,8 +23,16 @@ RUN apt-get update -qqy \
     unzip \
     xvfb \
     xz-utils \
-    # Audio packages as suggested
+    # Audio packages
     libasound2t64 \
+    libasound2-dev \
+    # PCI utilities (fixes libpci missing error)
+    pciutils \
+    # Graphics and X11 related packages
+    mesa-utils \
+    libgl1-mesa-dri \
+    libgl1-mesa-glx \
+    libglx-mesa0 \
     # Minimal set of Firefox dependencies
     libgtk-3-0 \
     libdbus-glib-1-2 \
@@ -61,11 +69,11 @@ RUN apt-get update -qqy \
     libvulkan1 \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
-# Manually install libasound2t64 if it exists
-RUN wget -q http://mirrors.edge.kernel.org/ubuntu/pool/main/a/alsa-lib/libasound2_1.2.4-1.1ubuntu2_amd64.deb -O libasound2.deb || true && \
-    if [ -f libasound2.deb ]; then \
+# Manually install libasound2t64 (as suggested by user)
+RUN wget -q http://mirrors.edge.kernel.org/ubuntu/pool/main/a/alsa-lib/libasound2_1.2.4-1.1ubuntu2_amd64.deb -O libasound2t64.deb || true && \
+    if [ -f libasound2t64.deb ]; then \
     apt-get update && \
-    apt-get install -y ./libasound2.deb || true; \
+    apt-get install -y ./libasound2t64.deb || true; \
     fi && \
     rm -f ./*.deb
 
@@ -98,6 +106,13 @@ RUN wget -q -O /tmp/geckodriver.tar.gz "https://github.com/mozilla/geckodriver/r
 # Create a directory for Firefox cache and give it proper permissions
 RUN mkdir -p /tmp/.mozilla \
     && chmod 777 /tmp/.mozilla
+
+# Create Firefox preferences to improve stability in headless mode
+RUN mkdir -p /etc/firefox && \
+    echo 'pref("gfx.x11-egl.force-enabled", false);' >> /etc/firefox/syspref.js && \
+    echo 'pref("widget.use-xdg-desktop-portal", false);' >> /etc/firefox/syspref.js && \
+    echo 'pref("browser.tabs.remote.autostart", false);' >> /etc/firefox/syspref.js && \
+    echo 'pref("layers.acceleration.disabled", true);' >> /etc/firefox/syspref.js
 
 # Create scripts as root before switching to appuser
 # Create a script to run tests with Xvfb
@@ -151,6 +166,9 @@ ENV MOZ_CRASHREPORTER_DISABLE=1
 # Set locale variables for better compatibility
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
+# Disable hardware acceleration for Firefox
+ENV MOZ_WEBRENDER=0
+ENV MOZ_ACCELERATED=0
 
 # Create non-root user
 RUN useradd -m appuser
