@@ -46,7 +46,7 @@ RUN apt-get update -qqy \
     libsoup2.4-1 \
     fonts-liberation \
     fonts-dejavu \
-    # libasound2 is moved to a separate RUN command for verification
+    # libasound2 is moved to a separate RUN command below
     libwebp6 \
     # Further common Firefox runtime dependencies
     libgconf-2-4 \
@@ -59,12 +59,14 @@ RUN apt-get update -qqy \
     libegl1 \
     libgl1-mesa-glx \
     libxcb-xinput0 \
+    # Added libnss3-tools for certificate management
+    libnss3-tools \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 # Install libasound2 separately and verify its presence
+# This ensures ldconfig is run after its installation, helping the system find the library.
 RUN apt-get update -qqy \
-    && apt-get install -qqy --no-install-recommends libasound2 \ 
-    libasound2:i386 \
+    && apt-get install -qqy --no-install-recommends libasound2 \
     && dpkg -L libasound2 | grep libasound.so.2 \
     && ldconfig \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
