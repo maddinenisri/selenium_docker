@@ -27,10 +27,12 @@ public class Hooks {
         FirefoxOptions options = new FirefoxOptions();
 
         // Set Firefox options for headless mode
-        options.addArguments("--headless");
+        options.addArguments("-headless"); // Use single dash for compatibility
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--window-size=1920,1080");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--disable-software-rasterizer");
 
         // Enable debugging
         options.setCapability("moz:debuggerAddress", true);
