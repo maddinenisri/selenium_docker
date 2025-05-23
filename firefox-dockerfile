@@ -31,7 +31,7 @@ RUN apt-get update -qqy \
     # Graphics and X11 related packages
     mesa-utils \
     libgl1-mesa-dri \
-    libgl1-mesa-glx \
+    libgl1 \
     libglx-mesa0 \
     # Minimal set of Firefox dependencies
     libgtk-3-0 \
