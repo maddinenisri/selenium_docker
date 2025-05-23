@@ -63,6 +63,10 @@ RUN apt-get update -qqy \
     libnss3-tools \
     # Add strace for debugging missing libraries
     strace \
+    # Ensure libasound2 and its dependencies are properly installed
+    libasound2 \
+    libasound2-data \
+    libasound2-plugins \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 # Run ldconfig and verify libasound.so.2 existence as root before switching user
@@ -113,14 +117,36 @@ ENV MOZ_CRASHREPORTER_DISABLE=1
 # Set locale variables for better compatibility
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
+# Find and explicitly set LD_LIBRARY_PATH to include libasound.so.2 location
+RUN LIBASOUND_PATH=$(find /usr/lib/ -name "libasound.so.2" | head -n 1 | xargs dirname) && \
+    echo "Found libasound.so.2 in: ${LIBASOUND_PATH}" && \
+    echo "export LD_LIBRARY_PATH=${LIBASOUND_PATH}:/usr/lib/x86_64-linux-gnu/:/usr/lib/:${LD_LIBRARY_PATH}" >> /etc/profile && \
+    echo "export LD_LIBRARY_PATH=${LIBASOUND_PATH}:/usr/lib/x86_64-linux-gnu/:/usr/lib/:${LD_LIBRARY_PATH}" >> /home/appuser/.bashrc
+
 # Explicitly set LD_LIBRARY_PATH for the appuser
-ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/:/usr/lib/:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/:/usr/lib/x86_64-linux-gnu/pulseaudio/:/usr/lib/:${LD_LIBRARY_PATH}
 # Set a robust PATH for the appuser
 ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
 
 # Create non-root user
 RUN useradd -m appuser
+
+# Ensure library directories are accessible to appuser
+RUN mkdir -p /etc/ld.so.conf.d/ && \
+    echo "/usr/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/firefox-libs.conf && \
+    echo "/usr/lib" >> /etc/ld.so.conf.d/firefox-libs.conf && \
+    ldconfig && \
+    # Verify libasound.so.2 is in the library path
+    ldconfig -p | grep libasound.so.2 && \
+    # Copy necessary libraries to appuser's home directory if needed
+    mkdir -p /home/appuser/lib && \
+    cp $(find /usr/lib/ -name "libasound.so.2") /home/appuser/lib/ && \
+    chown -R appuser:appuser /home/appuser/lib
+
+# Switch to non-root user
 USER appuser
+# Add appuser's lib directory to LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/home/appuser/lib:${LD_LIBRARY_PATH}
 WORKDIR /home/appuser
 
 # Expose the default port for Geckodriver
